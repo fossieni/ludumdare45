@@ -10,8 +10,8 @@ game.playerActors = {}
 
 function game:init()
     local anim = {
-        {index = 1, started = true, looping = true, speed = 200, animation = {1, 2, 5, 10}},
-        {index = 2, started = true, looping = true, speed = 200, animation = {11, 12, 15, 20}}
+        {index = 220, started = true, looping = true, speed = 200, animation = {220, 221, 222}},
+        {index = 221, started = true, looping = true, speed = 200, animation = {220, 221, 222}}
     }
 
     self.levelIndex = 1
@@ -19,7 +19,12 @@ function game:init()
     local level = require "level"
 
     self.levels = {
-        [1] = level:new("assets.test2", {9, 54, 55, 56, 57}, anim, {x = 2, y = 2}),
+        [1] = level:new(
+            "assets.base",
+            {93, 94, 95, 74, 114, 262, 263, 264, 282, 283, 284, 302, 303, 304},
+            anim,
+            {x = 10, y = 13}
+        ),
         [2] = level:new("assets.test3", {71}, anim, {x = 5, y = 9})
     }
     self.currentLevel = self.levels[self.levelIndex]
@@ -222,6 +227,7 @@ function game:update(dt)
         DEBUG_BUFFER = DEBUG_BUFFER .. "ACTUAL " .. actualX .. " " .. actualY .. "\n"
         players[1].hitbox.x = actualX
         players[1].hitbox.y = actualY
+
         self.currentLevel:update(dt)
         for i, actor in pairs(self.playerActors) do
             actor:update(dt)
@@ -236,6 +242,7 @@ function game:draw()
     -- love.graphics.setShader(effect)
 
     -- draw cool background
+    love.graphics.translate(-players[1].hitbox.x + 200, -players[1].hitbox.y + 150)
     self.currentLevel:draw()
 
     for i, actor in pairs(self.playerActors) do

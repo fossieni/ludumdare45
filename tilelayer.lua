@@ -28,8 +28,6 @@ function Tilelayer:init(mapWidth, mapHeight, data, tileWidth, tileHeight, tileSe
 
     self.offsetX = 0
     self.offsetY = 0
-    self.scaleX = scale
-    self.scaleY = scale
 
     return layer
 end
@@ -167,7 +165,6 @@ end
 function Tilelayer:draw()
     love.graphics.setColor(1, 1, 1, 1)
     love.graphics.push()
-    love.graphics.scale(self.scaleX, self.scaleY)
     love.graphics.draw(self.canvas, self.offsetX, self.offsetY)
     if DEBUG then
         love.graphics.setColor(1, 0, 0, 0.25)

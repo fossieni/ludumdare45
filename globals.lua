@@ -9,7 +9,7 @@ CONFIG = {
             up = "nearest",
             down = "nearest"
         },
-        scale = 3
+        scale = 2
     },
     window = {
         icon = nil,
