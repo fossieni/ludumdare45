@@ -13,7 +13,7 @@ States = {
 Inputmanager = require "inputmanager"
 
 players = {
-    {name = "AAA", speed = 25, hitbox = {x = 0, y = 0, w = 10, h = 10, type = 0}, gfxoffset = {x = -11, y = -11}}
+    {name = "AAA", speed = 25, hitbox = {x = 0, y = 0, w = 10, h = 10, type = 0}}
 }
 input = Inputmanager:init(players)
 

@@ -1,12 +1,31 @@
 local Actor = {}
 Actor.__index = Actor
 
-function Actor:init(w, h, tileSetFile, tileSetModulo, anim, scale)
-    local actor = {}
-    setmetatable(actor, Actor)
+Actor.pos = nil
+Actor.currentAnim = nil
+Actor.width = nil
+Actor.tileWidth = nil
+Actor.tileHeight = nil
+Actor.tileSet = nil
+Actor.tileSetModulo = nil
+Actor.anim = nil
+Actor.canvas = nil
+Actor.direction = nil
+Actor.hide = nil
 
-    self.pos = {x = 0, y = 0, offsetX = 3, offsetY = 3}
-    self.currentAnim = 1
+function Actor:new(w, h, tileSetFile, tileSetModulo, anim, scale)
+    actor = {}
+    setmetatable(actor, self)
+    self.__index = self
+
+    actor:_create(w, h, tileSetFile, tileSetModulo, anim, scale)
+
+    return actor
+end
+
+function Actor:_create(w, h, tileSetFile, tileSetModulo, anim, scale)
+    self.pos = {offsetX = 11, offsetY = 22}
+    self.currentAnim = 3
     self.width = 0
     self.tileWidth = w
     self.tileHeight = h
@@ -14,11 +33,8 @@ function Actor:init(w, h, tileSetFile, tileSetModulo, anim, scale)
     self.tileSetModulo = tileSetModulo
     self.anim = anim
     self.canvas = love.graphics.newCanvas(w, h)
-    self.scaleX = scale
-    self.scaleY = scale
+    self.direction = 0
     self.hide = false
-
-    return actor
 end
 
 function Actor:update(dt)
@@ -55,27 +71,21 @@ function Actor:update(dt)
     love.graphics.pop()
 end
 
-function Actor:moveActor(x, y)
-    self.pos.x = x
-    self.pos.y = y
-end
-
 function Actor:drawTileToBuffer(index)
     love.graphics.setColor(1, 1, 1, 1)
     love.graphics.setCanvas(self.canvas)
     love.graphics.clear()
-    tsetX = index % self.tileSetModulo
-    tsetY = math.floor(index / self.tileSetModulo)
+    local tsetX = index % self.tileSetModulo
+    local tsetY = math.floor(index / self.tileSetModulo)
     love.graphics.draw(self.tileSet, -(tsetX * self.tileWidth), -(tsetY * self.tileHeight))
     love.graphics.setCanvas()
 end
 
-function Actor:draw()
+function Actor:draw(x, y)
     if self.hide == false then
         love.graphics.setColor(1, 1, 1, 1)
         love.graphics.push()
-        love.graphics.scale(self.scaleX, self.scaleY)
-        love.graphics.draw(self.canvas, self.pos.x - self.pos.offsetX, self.pos.y - self.pos.offsetY)
+        love.graphics.draw(self.canvas, x - self.pos.offsetX, y - self.pos.offsetY)
         love.graphics.pop()
         DEBUG_BUFFER = DEBUG_BUFFER .. "THING VISIBLE\n"
     end

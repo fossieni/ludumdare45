@@ -26,7 +26,25 @@ function game:init()
 
     for i, player in pairs(input.players) do
         local actor = require "actor"
-        table.insert(self.playerActors, actor)
+        table.insert(
+            self.playerActors,
+            actor:new(
+                32,
+                32,
+                "assets/Actor-Girl.png",
+                4,
+                {
+                    {time = 0, speed = 200, frame = 1, animation = {0}},
+                    {time = 0, speed = 200, frame = 1, animation = {1, 0, 2, 0}},
+                    {time = 0, speed = 200, frame = 1, animation = {4}},
+                    {time = 0, speed = 200, frame = 1, animation = {5, 4, 6, 4}},
+                    {time = 0, speed = 200, frame = 1, animation = {8}},
+                    {time = 0, speed = 200, frame = 1, animation = {9, 8, 10, 8}},
+                    {time = 0, speed = 200, frame = 1, animation = {12}},
+                    {time = 0, speed = 200, frame = 1, animation = {13, 12, 14, 12}}
+                }
+            )
+        )
     end
 end
 
@@ -86,8 +104,22 @@ function game:reloadLevel()
 
     self.playerActors = {}
     for i, player in pairs(input.players) do
-        local player = require "actor"
-        table.insert(self.playerActors, player)
+        local actor = require "actor"
+        --    local playerActor = Actor:init(32,32,"assets/Sprite-0007.png", 8,
+
+        table.insert(
+            self.playerActors,
+            player:new(
+                32,
+                32,
+                "assets/Actor-Girl.png",
+                4,
+                {
+                    {time = 0, speed = 200, frame = 1, animation = {0, 1, 0, 2}},
+                    {time = 0, speed = 200, frame = 1, animation = {0, 4}}
+                }
+            )
+        )
     end
 
     self.bumpWorld:add(
@@ -122,18 +154,50 @@ function game:update(dt)
         local goalX = players[1].hitbox.x
         local goalY = players[1].hitbox.y
         if input.players[1]:down() then
-            --goalX = (players[1].speed * dt)
             goalY = players[1].hitbox.y + (players[1].speed * dt)
+            local cur = self.playerActors[1].direction
+            if cur ~= 1 and not input.players[1]:right() and not input.players[1]:left() then
+                self.playerActors[1].direction = 1
+                self.playerActors[1].currentAnim = 2
+                self.playerActors[1].anim[self.playerActors[1].currentAnim].time = 10000
+            end
         elseif input.players[1]:up() then
             goalY = players[1].hitbox.y - (players[1].speed * dt)
-        --goalX = -(players[1].speed * dt)
+            local cur = self.playerActors[1].currentAnim
+            if cur ~= 4 and not input.players[1]:right() and not input.players[1]:left() then
+                self.playerActors[1].direction = 2
+                self.playerActors[1].currentAnim = 4
+                self.playerActors[1].anim[self.playerActors[1].currentAnim].time = 1000
+            end
         end
-        if input.players[1]:right() then
-            --goalY = (players[1].speed * dt)
-            goalX = players[1].hitbox.x + (players[1].speed * dt)
-        elseif input.players[1]:left() then
+        if input.players[1]:left() then
             goalX = players[1].hitbox.x - (players[1].speed * dt)
-        --goalY = -(players[1].speed * dt)
+            local cur = self.playerActors[1].currentAnim
+            if cur ~= 6 and not input.players[1]:up() and not input.players[1]:down() then
+                self.playerActors[1].direction = 3
+                self.playerActors[1].currentAnim = 6
+                self.playerActors[1].anim[self.playerActors[1].currentAnim].time = 1000
+            end
+        elseif input.players[1]:right() then
+            goalX = players[1].hitbox.x + (players[1].speed * dt)
+            local cur = self.playerActors[1].currentAnim
+            if cur ~= 8 and not input.players[1]:up() and not input.players[1]:down() then
+                self.playerActors[1].direction = 4
+                self.playerActors[1].currentAnim = 8
+                self.playerActors[1].anim[self.playerActors[1].currentAnim].time = 10000
+            end
+        end
+        if
+            not input.players[1]:down() and not input.players[1]:up() and not input.players[1]:right() and
+                not input.players[1]:left()
+         then
+            if self.playerActors[1].direction ~= 0 then
+                self.playerActors[1].direction = 0
+                self.playerActors[1].currentAnim = self.playerActors[1].currentAnim - 1
+                self.playerActors[1].anim[self.playerActors[1].currentAnim].time = 10000
+            else
+                self.playerActors[1].direction = 0
+            end
         end
 
         local actualX, actualY, cols, len = self.bumpWorld:move(players[1].hitbox, goalX, goalY, bumpFilter)
@@ -159,6 +223,9 @@ function game:update(dt)
         players[1].hitbox.x = actualX
         players[1].hitbox.y = actualY
         self.currentLevel:update(dt)
+        for i, actor in pairs(self.playerActors) do
+            actor:update(dt)
+        end
     end
 end
 
@@ -170,7 +237,12 @@ function game:draw()
 
     -- draw cool background
     self.currentLevel:draw()
-    -- draw players
+
+    for i, actor in pairs(self.playerActors) do
+        actor:draw(players[i].hitbox.x, players[i].hitbox.y)
+    end
+
+    -- draw enemies?
 
     -- love.graphics.setShader()
 
