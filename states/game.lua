@@ -1,158 +1,179 @@
 local game = {}
 
-local Tilelayer = require "tilelayer"
-local Bump = require "libs.bumps"
+Bump = require "libs.bumps"
+game.bumpWorld = Bump.newWorld()
 
-local level1 = require "assets.test2"
-local bumpWorld = Bump.newWorld()
+game.levels = nil
+game.levelIndex = nil
+game.currentLevel = nil
+game.playerActors = {}
 
 function game:init()
+    local anim = {
+        {index = 1, started = true, looping = true, speed = 200, animation = {1, 2, 5, 10}},
+        {index = 2, started = true, looping = true, speed = 200, animation = {11, 12, 15, 20}}
+    }
+
+    self.levelIndex = 1
+
+    local level = require "level"
+
+    self.levels = {
+        [1] = level:new("assets.test2", {9, 54, 55, 56, 57}, anim, {x = 2, y = 2}),
+        [2] = level:new("assets.test3", {71}, anim, {x = 5, y = 9})
+    }
+    self.currentLevel = self.levels[self.levelIndex]
+
+    for i, player in pairs(input.players) do
+        local actor = require "actor"
+        table.insert(self.playerActors, actor)
+    end
 end
 
 function game:enter()
-    local anim = {
-        {index = 33, speed = 200, animation = {0, 1, 2, 3, 4, 5, 6, 7}}
-    }
-    local anim2 = {
-        {
-            id = 16,
-            animation = {
-                {
-                    tileid = 0,
-                    duration = 100
-                },
-                {
-                    tileid = 1,
-                    duration = 100
-                },
-                {
-                    tileid = 2,
-                    duration = 100
-                },
-                {
-                    tileid = 19,
-                    duration = 100
-                },
-                {
-                    tileid = 21,
-                    duration = 100
-                }
-            }
-        }
-    }
-    local walkable = {[9] = true, [54] = true, [55] = true, [56] = true, [57] = true}
+    self:loadLevel(1)
 
-    playMap =
-        Tilelayer:init(
-        level1.layers[1].width,
-        level1.layers[1].height,
-        level1.layers[1].data,
-        level1.tilesets[1].tilewidth,
-        level1.tilesets[1].tileheight,
-        "assets/tileset_01.png",
-        level1.tilesets[1].columns
-    )
-    playMap:addTiledAnimations(anim2)
-    --playMap:addManualTileAnimations(anim)
-    playMap:initCanvas()
-    playMap.walls = {}
-
-    for i, tile in pairs(level1.layers[1].data) do
-        DEBUG_BUFFER = DEBUG_BUFFER .. "[" .. i .. "] " .. tile
-        if walkable[tile] == nil then
-            DEBUG_BUFFER = DEBUG_BUFFER .. "* "
-            local wallx = ((i - 1) % playMap.mapWidth) * playMap.tileWidth
-            local wally = math.floor((i - 1) / playMap.mapWidth) * playMap.tileHeight
-            local wall = {x = wallx, y = wally, w = playMap.tileWidth, h = playMap.tileHeight, type = 1}
-            table.insert(playMap.walls, wall)
-            bumpWorld:add(wall, wall.x, wall.y, wall.w, wall.h)
-        end
+    input.players[1].onA = function(state)
+        state.currentLevel:setTile(1, 2)
+        state.currentLevel.tilelayer:redrawCanvas()
     end
-
-    input.players[1].onA = function()
-        print("aaaaaa")
+    input.players[1].onB = function(state)
+        -- state:reloadLevel()
+        state:loadNextLevel()
     end
-    input.players[1].onLeft = function()
+    input.players[1].onLeft = function(state)
         print("left")
     end
-    input.players[1].onRight = function()
+    input.players[1].onRight = function(state)
         print("right")
     end
-    input.players[1].onUp = function()
+    input.players[1].onUp = function(state)
         print("up")
     end
-    input.players[1].onDown = function()
+    input.players[1].onDown = function(state)
         print("down")
     end
-    bumpWorld:add(players[1].hitbox, players[1].hitbox.x, players[1].hitbox.y, players[1].hitbox.w, players[1].hitbox.h)
+    -- effect = love.graphics.newShader("shader.glsl")
+end
 
-    effect = love.graphics.newShader("shader2.glsl")
+function game:loadLevel(index)
+    self.levelIndex = index
+
+    self.bumpWorld = Bump.newWorld()
+    self.currentLevel = self.levels[self.levelIndex]
+    self.currentLevel:setup()
+    self.currentLevel:buildWalls(self.bumpWorld)
+
+    self.bumpWorld:add(
+        players[1].hitbox,
+        players[1].hitbox.x,
+        players[1].hitbox.y,
+        players[1].hitbox.w,
+        players[1].hitbox.h
+    )
+end
+
+function game:loadNextLevel()
+    self:unloadLevel()
+    self:loadLevel(self.levelIndex + 1)
+end
+
+function game:reloadLevel()
+    self.bumpWorld = Bump.newWorld()
+
+    self.currentLevel:reload()
+    self.currentLevel:buildWalls(self.bumpWorld)
+
+    self.playerActors = {}
+    for i, player in pairs(input.players) do
+        local player = require "actor"
+        table.insert(self.playerActors, player)
+    end
+
+    self.bumpWorld:add(
+        players[1].hitbox,
+        players[1].hitbox.x,
+        players[1].hitbox.y,
+        players[1].hitbox.w,
+        players[1].hitbox.h
+    )
+end
+
+function game:unloadLevel()
+    self.bumpWorld = {}
+    self.currentLevel:unload()
 end
 
 function game:update(dt)
-    local bumpFilter = function(item, other)
-        if other.type == 1 then
-            --        if other.type == 0  then return 'cross'
-            --        elseif other.type then return 'touch'
-            --        elseif other.type then return 'bounce'
-            return "slide"
-        else
-            return "slide"
-        end
-    end
-
     input:update(dt)
-    local goalX = players[1].hitbox.x
-    local goalY = players[1].hitbox.y
-    if input.players[1]:down() then
-        --goalX = (players[1].speed * dt)
-        goalY = players[1].hitbox.y + (players[1].speed * dt)
-    elseif input.players[1]:up() then
-        goalY = players[1].hitbox.y - (players[1].speed * dt)
-    --goalX = -(players[1].speed * dt)
-    end
-    if input.players[1]:right() then
-        --goalY = (players[1].speed * dt)
-        goalX = players[1].hitbox.x + (players[1].speed * dt)
-    elseif input.players[1]:left() then
-        goalX = players[1].hitbox.x - (players[1].speed * dt)
-    --goalY = -(players[1].speed * dt)
-    end
 
-    local actualX, actualY, cols, len = bumpWorld:move(players[1].hitbox, goalX, goalY, bumpFilter)
-    DEBUG_BUFFER =
-        DEBUG_BUFFER ..
-        "PLAYER " ..
-            players[1].hitbox.x ..
-                " " .. players[1].hitbox.y .. " " .. players[1].hitbox.w .. " " .. players[1].hitbox.h .. "\n"
-    if #cols > 0 then
-        for _, col in pairs(cols) do
-            DEBUG_BUFFER =
-                DEBUG_BUFFER ..
-                "COLISION " ..
-                    col.other.type ..
-                        " " ..
-                            col.type ..
-                                " " ..
-                                    col.other.x ..
-                                        " " .. col.other.y .. " " .. col.other.w .. " " .. col.other.h .. "\n"
+    if self.bumpWorld ~= nil and self.currentLevel ~= nil then
+        local bumpFilter = function(item, other)
+            if other.type == 1 then
+                --        if other.type == 0  then return 'cross'
+                --        elseif other.type then return 'touch'
+                --        elseif other.type then return 'bounce'
+                return "slide"
+            else
+                return "slide"
+            end
         end
+
+        local goalX = players[1].hitbox.x
+        local goalY = players[1].hitbox.y
+        if input.players[1]:down() then
+            --goalX = (players[1].speed * dt)
+            goalY = players[1].hitbox.y + (players[1].speed * dt)
+        elseif input.players[1]:up() then
+            goalY = players[1].hitbox.y - (players[1].speed * dt)
+        --goalX = -(players[1].speed * dt)
+        end
+        if input.players[1]:right() then
+            --goalY = (players[1].speed * dt)
+            goalX = players[1].hitbox.x + (players[1].speed * dt)
+        elseif input.players[1]:left() then
+            goalX = players[1].hitbox.x - (players[1].speed * dt)
+        --goalY = -(players[1].speed * dt)
+        end
+
+        local actualX, actualY, cols, len = self.bumpWorld:move(players[1].hitbox, goalX, goalY, bumpFilter)
+        DEBUG_BUFFER =
+            DEBUG_BUFFER ..
+            "PLAYER " ..
+                players[1].hitbox.x ..
+                    " " .. players[1].hitbox.y .. " " .. players[1].hitbox.w .. " " .. players[1].hitbox.h .. "\n"
+        if #cols > 0 then
+            for _, col in pairs(cols) do
+                DEBUG_BUFFER =
+                    DEBUG_BUFFER ..
+                    "COLISION " ..
+                        col.other.type ..
+                            " " ..
+                                col.type ..
+                                    " " ..
+                                        col.other.x ..
+                                            " " .. col.other.y .. " " .. col.other.w .. " " .. col.other.h .. "\n"
+            end
+        end
+        DEBUG_BUFFER = DEBUG_BUFFER .. "ACTUAL " .. actualX .. " " .. actualY .. "\n"
+        players[1].hitbox.x = actualX
+        players[1].hitbox.y = actualY
+        self.currentLevel:update(dt)
     end
-    DEBUG_BUFFER = DEBUG_BUFFER .. "ACTUAL " .. actualX .. " " .. actualY .. "\n"
-    players[1].hitbox.x = actualX
-    players[1].hitbox.y = actualY
-    playMap:update(dt)
 end
 
 function game:draw()
     love.graphics.push()
     love.graphics.scale(CONFIG.renderer.scale, CONFIG.renderer.scale)
 
-    love.graphics.setShader(effect)
+    -- love.graphics.setShader(effect)
+
     -- draw cool background
-    playMap:draw()
+    self.currentLevel:draw()
     -- draw players
-    love.graphics.setShader()
+
+    -- love.graphics.setShader()
+
     love.graphics.pop()
 
     if DEBUG then
@@ -165,6 +186,8 @@ function game:draw()
         love.graphics.pop()
     end
 end
+
+-- INPUT HANDLERS
 
 function game:joystickpressed(joystick, button)
     input:joystickpressed(joystick, button)

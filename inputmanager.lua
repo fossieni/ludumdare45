@@ -133,17 +133,17 @@ function Inputmanager:joystickpressed(joystick, button)
             -- local y = joystick:getGamepadAxis("lefty")
 
             if joystick:isGamepadDown(player.map.a) and player.onA ~= nil then
-                player.onA()
+                player.onA(State.current())
             elseif joystick:isGamepadDown(player.map.b) and player.onB ~= nil then
-                player.onB()
+                player.onB(State.current())
             elseif joystick:isGamepadDown(player.map.up) and player.onUp ~= nil then
-                player.onUp()
+                player.onUp(State.current())
             elseif joystick:isGamepadDown(player.map.down) and player.onDown ~= nil then
-                player.onDown()
+                player.onDown(State.current())
             elseif joystick:isGamepadDown(player.map.left) and player.onLeft ~= nil then
-                player.onLeft()
+                player.onLeft(State.current())
             elseif joystick:isGamepadDown(player.map.right) and player.onRight ~= nil then
-                player.onRight()
+                player.onRight(State.current())
             end
         end
     end
@@ -156,17 +156,17 @@ function Inputmanager:keypressed(key, isRepeat)
         for i, player in pairs(self.players) do
             if player.type == 2 then
                 if key == player.map.a and player.onA ~= nil then
-                    player.onA()
+                    player.onA(State.current())
                 elseif key == player.map.b and player.onB ~= nil then
-                    player.onB()
+                    player.onB(State.current())
                 elseif key == player.map.up and player.onUp ~= nil then
-                    player.onUp()
+                    player.onUp(State.current())
                 elseif key == player.map.down and player.onDown ~= nil then
-                    player.onUp()
+                    player.onUp(State.current())
                 elseif key == player.map.left and player.onLeft ~= nil then
-                    player.onLeft()
+                    player.onLeft(State.current())
                 elseif key == player.map.right and player.onRight ~= nil then
-                    player.onRight()
+                    player.onRight(State.current())
                 end
             end
         end

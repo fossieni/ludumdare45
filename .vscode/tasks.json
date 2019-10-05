@@ -25,9 +25,9 @@
             "command": "killall love",
             "isBackground": true,
             "problemMatcher": [],
-            // "presentation": {
-            //     "reveal": "never"
-            // }
+            "presentation": {
+                "reveal": "never"
+            }
         }
     ]
 }
