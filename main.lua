@@ -13,14 +13,14 @@ States = {
 Inputmanager = require "inputmanager"
 
 players = {
-    {name = "AAA", speed = 25, hitbox = {x = 0, y = 0, w = 10, h = 10, type = 0}}
+    {name = "AAA", speed = 50, hitbox = {x = 0, y = 0, w = 10, h = 10, type = 0}}
 }
 input = Inputmanager:init(players)
 
 function love.load()
     --love.window.setIcon(love.image.newImageData(CONFIG.window.icon))
     love.graphics.setDefaultFilter(CONFIG.renderer.filter.down, CONFIG.renderer.filter.up, 1)
-    font =
+    fonttext =
         love.graphics.newImageFont(
         "assets/font.png",
         ' !"#$%&\'()*+,-./0123456789:@ABCDEFGHIJKLMNOPQRSTUVWXYZ±abcdefghijklmnopqrstuvwxyz'
@@ -40,7 +40,7 @@ function love.update(dt)
 end
 
 function love.draw()
-    love.graphics.setFont(font)
+    love.graphics.setFont(fonttext)
     local t = love.timer.getTime()
     State.current():draw()
     local drawtime = love.timer.getTime() - t

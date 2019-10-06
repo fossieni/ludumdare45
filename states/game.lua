@@ -1,5 +1,7 @@
 local game = {}
 
+bumpTypes = {wall = 1, door = 10, lever = 11, firechest = 20, woodchest = 21, waterchest = 22}
+playerDirections = {down = 1, up = 2, left = 3, right = 4}
 Bump = require "libs.bumps"
 game.bumpWorld = Bump.newWorld()
 
@@ -9,23 +11,17 @@ game.currentLevel = nil
 game.playerActors = {}
 
 function game:init()
-    local anim = {
-        {index = 220, started = true, looping = true, speed = 200, animation = {220, 221, 222}},
-        {index = 221, started = true, looping = true, speed = 200, animation = {220, 221, 222}}
-    }
+    -- {index = 220, started = true, looping = true, speed = 100, animation = {220, 221, 222}},
+    -- {index = 221, started = true, looping = true, speed = 100, animation = {220, 221, 222}}
+    local anim = {}
 
     self.levelIndex = 1
 
     local level = require "level"
 
     self.levels = {
-        [1] = level:new(
-            "assets.base",
-            {93, 94, 95, 74, 114, 262, 263, 264, 282, 283, 284, 302, 303, 304},
-            anim,
-            {x = 10, y = 13}
-        ),
-        [2] = level:new("assets.test3", {71}, anim, {x = 5, y = 9})
+        [1] = level:new("assets.base", {}, anim, {x = 10, y = 15}),
+        [2] = level:new("assets.base", {}, anim, {x = 8, y = 13})
     }
     self.currentLevel = self.levels[self.levelIndex]
 
@@ -57,8 +53,79 @@ function game:enter()
     self:loadLevel(1)
 
     input.players[1].onA = function(state)
-        state.currentLevel:setTile(1, 2)
-        state.currentLevel.tilelayer:redrawCanvas()
+        local pos = state.currentLevel:getCoordsForPos(players[1].hitbox.x, players[1].hitbox.y)
+        if state.playerActors[1].direction == playerDirections.down then
+            pos.y = pos.y + 1
+        elseif state.playerActors[1].direction == playerDirections.up then
+            pos.y = pos.y - 1
+        elseif state.playerActors[1].direction == playerDirections.left then
+            pos.x = pos.x - 1
+        elseif state.playerActors[1].direction == playerDirections.right then
+            pos.x = pos.x + 1
+        end
+        local tile = state.currentLevel:getTileAtPos(pos.x, pos.y)
+
+        if tile.bumpobj.type == bumpTypes.firechest then
+            tile.started = true
+            state.currentLevel.playerInventory["firechest"] = state.currentLevel.props["firechest"]
+            state.currentLevel.props["firechest"] = 0
+            print("Picked up " .. state.currentLevel.playerInventory["firechest"] .. " FIRE")
+        elseif tile.bumpobj.type == bumpTypes.woodchest then
+            tile.started = true
+            state.currentLevel.playerInventory["woodchest"] = state.currentLevel.props["woodchest"]
+            state.currentLevel.props["woodchest"] = 0
+            print("Picked up " .. state.currentLevel.playerInventory["woodchest"] .. " WOOD")
+        elseif tile.bumpobj.type == bumpTypes.waterchest then
+            tile.started = true
+            state.currentLevel.playerInventory["waterchest"] = state.currentLevel.props["waterchest"]
+            state.currentLevel.props["waterchest"] = 0
+            print("Picked up " .. state.currentLevel.playerInventory["waterchest"] .. " WATER")
+        end
+
+        if
+            tile.type == "water" and state.currentLevel.playerInventory["woodchest"] and
+                state.currentLevel.playerInventory["woodchest"] > 0
+         then
+            state.currentLevel.playerInventory["woodchest"] = state.currentLevel.playerInventory["woodchest"] - 1
+            tile.type = "default"
+            if
+                state.playerActors[1].direction == playerDirections.down or
+                    state.playerActors[1].direction == playerDirections.up
+             then
+                tile.bumpobj.type = 0
+                state.currentLevel:setTileAtPos(pos.x, pos.y, 134, false, "default")
+            else
+                tile.bumpobj.type = 0
+                state.currentLevel:setTileAtPos(pos.x, pos.y, 133, false, "default")
+            end
+        elseif
+            tile.type == "fire" and state.currentLevel.playerInventory["waterchest"] and
+                state.currentLevel.playerInventory["waterchest"] > 0
+         then
+            state.currentLevel.playerInventory["waterchest"] = state.currentLevel.playerInventory["waterchest"] - 1
+            tile.type = "default"
+            tile.bumpobj.type = 0
+            state.currentLevel:setTileAtPos(pos.x, pos.y, 531, false, "default")
+        elseif
+            tile.type == "wood" and state.currentLevel.playerInventory["firechest"] and
+                state.currentLevel.playerInventory["firechest"] > 0
+         then
+            state.currentLevel.playerInventory["firechest"] = state.currentLevel.playerInventory["firechest"] - 1
+            tile.type = "default"
+            tile.bumpobj.type = 0
+            state.currentLevel:setTileAtPos(pos.x, pos.y, 141, false, "default")
+        elseif tile.type == "lever" then
+            tile.started = true
+            state.currentLevel.flags.doorOpen = true
+            state.currentLevel:getTileByIndex(77).started = true
+            state.currentLevel:getTileByIndex(78).started = true
+            state.currentLevel:getTileByIndex(79).started = true
+            state.currentLevel:getTileByIndex(97).started = true
+            state.currentLevel:getTileByIndex(98).started = true
+            state.currentLevel:getTileByIndex(99).started = true
+        end
+
+        print("Looking at " .. tile.type)
     end
     input.players[1].onB = function(state)
         -- state:reloadLevel()
@@ -85,7 +152,7 @@ function game:loadLevel(index)
     self.bumpWorld = Bump.newWorld()
     self.currentLevel = self.levels[self.levelIndex]
     self.currentLevel:setup()
-    self.currentLevel:buildWalls(self.bumpWorld)
+    self.currentLevel:buildBumpWorld(self.bumpWorld)
 
     self.bumpWorld:add(
         players[1].hitbox,
@@ -146,13 +213,26 @@ function game:update(dt)
 
     if self.bumpWorld ~= nil and self.currentLevel ~= nil then
         local bumpFilter = function(item, other)
-            if other.type == 1 then
+            if other.type == bumpTypes.wall then
                 --        if other.type == 0  then return 'cross'
                 --        elseif other.type then return 'touch'
                 --        elseif other.type then return 'bounce'
                 return "slide"
-            else
+            elseif other.type == bumpTypes.door then
+                if self.currentLevel.flags.doorOpen then
+                    self:loadNextLevel()
+                    return "cross"
+                else
+                    return "slide"
+                end
+            elseif
+                other.type == bumpTypes.firechest or other.type == bumpTypes.waterchest or
+                    other.type == bumpTypes.woodchest or
+                    other.type == bumpTypes.lever
+             then
                 return "slide"
+            else
+                return "cross"
             end
         end
 
@@ -162,7 +242,8 @@ function game:update(dt)
             goalY = players[1].hitbox.y + (players[1].speed * dt)
             local cur = self.playerActors[1].direction
             if cur ~= 1 and not input.players[1]:right() and not input.players[1]:left() then
-                self.playerActors[1].direction = 1
+                self.currentLevel.sound_walking:play()
+                self.playerActors[1].direction = playerDirections.down
                 self.playerActors[1].currentAnim = 2
                 self.playerActors[1].anim[self.playerActors[1].currentAnim].time = 10000
             end
@@ -170,7 +251,8 @@ function game:update(dt)
             goalY = players[1].hitbox.y - (players[1].speed * dt)
             local cur = self.playerActors[1].currentAnim
             if cur ~= 4 and not input.players[1]:right() and not input.players[1]:left() then
-                self.playerActors[1].direction = 2
+                self.currentLevel.sound_walking:play()
+                self.playerActors[1].direction = playerDirections.up
                 self.playerActors[1].currentAnim = 4
                 self.playerActors[1].anim[self.playerActors[1].currentAnim].time = 1000
             end
@@ -179,7 +261,8 @@ function game:update(dt)
             goalX = players[1].hitbox.x - (players[1].speed * dt)
             local cur = self.playerActors[1].currentAnim
             if cur ~= 6 and not input.players[1]:up() and not input.players[1]:down() then
-                self.playerActors[1].direction = 3
+                self.currentLevel.sound_walking:play()
+                self.playerActors[1].direction = playerDirections.left
                 self.playerActors[1].currentAnim = 6
                 self.playerActors[1].anim[self.playerActors[1].currentAnim].time = 1000
             end
@@ -187,7 +270,8 @@ function game:update(dt)
             goalX = players[1].hitbox.x + (players[1].speed * dt)
             local cur = self.playerActors[1].currentAnim
             if cur ~= 8 and not input.players[1]:up() and not input.players[1]:down() then
-                self.playerActors[1].direction = 4
+                self.currentLevel.sound_walking:play()
+                self.playerActors[1].direction = playerDirections.right
                 self.playerActors[1].currentAnim = 8
                 self.playerActors[1].anim[self.playerActors[1].currentAnim].time = 10000
             end
@@ -196,12 +280,10 @@ function game:update(dt)
             not input.players[1]:down() and not input.players[1]:up() and not input.players[1]:right() and
                 not input.players[1]:left()
          then
-            if self.playerActors[1].direction ~= 0 then
-                self.playerActors[1].direction = 0
+            if self.playerActors[1].currentAnim % 2 ~= 1 then
+                self.currentLevel.sound_walking:stop()
                 self.playerActors[1].currentAnim = self.playerActors[1].currentAnim - 1
                 self.playerActors[1].anim[self.playerActors[1].currentAnim].time = 10000
-            else
-                self.playerActors[1].direction = 0
             end
         end
 
@@ -228,9 +310,15 @@ function game:update(dt)
         players[1].hitbox.x = actualX
         players[1].hitbox.y = actualY
 
+        self.currentLevel:getCoordsForPos(actualX, actualY)
+
         self.currentLevel:update(dt)
         for i, actor in pairs(self.playerActors) do
             actor:update(dt)
+        end
+
+        for key, prop in pairs(self.currentLevel.playerInventory) do
+            DEBUG_BUFFER = DEBUG_BUFFER .. "INVENTORY \n" .. key .. " " .. prop .. "\n"
         end
     end
 end
@@ -253,17 +341,14 @@ function game:draw()
 
     -- love.graphics.setShader()
 
-    love.graphics.pop()
-
     if DEBUG then
-        love.graphics.push()
-        love.graphics.scale(CONFIG.renderer.scale, CONFIG.renderer.scale)
-        love.graphics.setColor(0, 1, 0, 0.25)
+        love.graphics.setColor(1, 0, 1, 0.5)
         for _, player in pairs(players) do
             love.graphics.rectangle("fill", player.hitbox.x, player.hitbox.y, player.hitbox.w, player.hitbox.h)
         end
-        love.graphics.pop()
     end
+
+    love.graphics.pop()
 end
 
 -- INPUT HANDLERS

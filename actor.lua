@@ -33,7 +33,7 @@ function Actor:_create(w, h, tileSetFile, tileSetModulo, anim, scale)
     self.tileSetModulo = tileSetModulo
     self.anim = anim
     self.canvas = love.graphics.newCanvas(w, h)
-    self.direction = 0
+    self.direction = 2
     self.hide = false
 end
 

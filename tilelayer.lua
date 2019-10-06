@@ -1,7 +1,7 @@
 local Tilelayer = {}
 Tilelayer.__index = Tilelayer
 
-function Tilelayer:init(mapWidth, mapHeight, data, tileWidth, tileHeight, tileSetFile, tileSetModulo, scale)
+function Tilelayer:init(mapWidth, mapHeight, data, tiles, tileWidth, tileHeight, tileSetFile, tileSetModulo, scale)
     local layer = {}
     setmetatable(layer, Tilelayer)
 
@@ -16,13 +16,21 @@ function Tilelayer:init(mapWidth, mapHeight, data, tileWidth, tileHeight, tileSe
 
     self.tileMap = {}
     self.tileAnimations = {}
-    self.walls = {}
 
     for i, dataindex in ipairs(data) do
         if dataindex > 0 then
             local datax = (i - 1) % self.mapWidth
             local datay = math.floor((i - 1) / self.mapWidth)
-            table.insert(self.tileMap, {x = datax, y = datay, index = dataindex - 1})
+            local t = "default"
+            for ti, tiledef in ipairs(tiles) do
+                if tiledef.id == dataindex - 1 then
+                    if tiledef.properties and tiledef.properties.type then
+                        t = tiledef.properties.type
+                    end
+                end
+            end
+
+            table.insert(self.tileMap, {x = datax, y = datay, index = dataindex - 1, type = t, bumpobj = nil})
         end
     end
 
@@ -63,26 +71,44 @@ function Tilelayer:setTileMap(index, tileid)
     love.graphics.pop()
 end
 
-function Tilelayer:addTileAnimations(animationData)
-    -- if animationData[1].animation[1].duration ~= nil then
-    --     -- TILED DATA
-    --     -- for _, animation in pairs(animationData) do
-    --     --     for _, tile in pairs(self.tileMap) do
-    --     --         if tile.index == animation.id then
-    --     --             tile.frame = 1
-    --     --             tile.time = 0
-    --     --             tile.speed = animation.animation[1].duration
-    --     --             tile.started = animation.started or false
-    --     --             tile.looping = animation.looping or false
-    --     --             tile.animation = {}
-    --     --             for _, frame in pairs(animation.animation) do
-    --     --                 table.insert(tile.animation, frame.tileid)
-    --     --             end
-    --     --         end
-    --     --     end
-    --     -- end
-    -- else
-    -- MANUAL DATA
+function Tilelayer:addTiledAnimations(animationData)
+    for _, tile in pairs(animationData) do
+        if tile.animation then
+            local anim = {}
+            anim.speed = tile.animation[1].duration
+
+            local started = false
+            if tile.properties and tile.properties.started then
+                started = tile.properties.started
+            end
+
+            local looping = false
+            if tile.properties and tile.properties.looping then
+                looping = tile.properties.looping
+            end
+
+            anim.started = started
+            anim.looping = looping
+            anim.animation = {}
+            for _, frame in pairs(tile.animation) do
+                table.insert(anim.animation, frame.tileid)
+            end
+
+            self.tileAnimations[tile.id] = anim
+
+            for _, tile in pairs(self.tileMap) do
+                if self.tileAnimations[tile.index] then
+                    tile.frame = 1
+                    tile.time = 0
+                    tile.started = started
+                    tile.looping = looping
+                end
+            end
+        end
+    end
+end
+
+function Tilelayer:addManualAnimations(animationData)
     for _, animation in pairs(animationData) do
         local anim = {}
         anim.started = animation.started
@@ -101,7 +127,6 @@ function Tilelayer:addTileAnimations(animationData)
             end
         end
     end
-    -- end
 end
 
 function Tilelayer:redrawCanvas()
@@ -131,12 +156,17 @@ function Tilelayer:update(dt)
             while tile.time > self.tileAnimations[tile.index].speed do
                 update = true
                 tile.time = tile.time - self.tileAnimations[tile.index].speed
-                if tile.started == true and tile.frame < #self.tileAnimations[tile.index].animation then
+                if
+                    (tile.started == true or self.tileAnimations[tile.index].started) and
+                        tile.frame <= #self.tileAnimations[tile.index].animation
+                 then
                     tile.frame = tile.frame + 1
                 end
-                if self.tileAnimations[tile.index].looping == true then
-                    if tile.frame >= #self.tileAnimations[tile.index].animation then
+                if tile.frame > #self.tileAnimations[tile.index].animation then
+                    if self.tileAnimations[tile.index].looping == true then
                         tile.frame = 1
+                    else
+                        tile.frame = #self.tileAnimations[tile.index].animation
                     end
                 end
             end
@@ -166,13 +196,6 @@ function Tilelayer:draw()
     love.graphics.setColor(1, 1, 1, 1)
     love.graphics.push()
     love.graphics.draw(self.canvas, self.offsetX, self.offsetY)
-    if DEBUG then
-        love.graphics.setColor(1, 0, 0, 0.25)
-        for _, wall in pairs(self.walls) do
-            love.graphics.rectangle("fill", wall.x, wall.y, wall.w, wall.h)
-            DEBUG_BUFFER = DEBUG_BUFFER .. "WALL " .. wall.x .. " " .. wall.y .. " " .. wall.w .. " " .. wall.h .. "\n"
-        end
-    end
     love.graphics.pop()
 end
 
